@@ -33,13 +33,10 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   };
 
   const drawShape = (shape: Shape) => {
-    switch (shape.kind) {
-      case "circle":
-        drawCircle(shape);
-        break;
-      case "rectangle":
-        drawRectangle(shape);
-        break;
+    if (shape.Circle) {
+      drawCircle(shape.Circle);
+    } else if (shape.Rectangle) {
+      drawRectangle(shape.Rectangle);
     }
   };
 

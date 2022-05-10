@@ -1,10 +1,38 @@
 #![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
 )]
 
+mod simple_shape;
+
+use simple_shape::{SimpleShape, SimpleShapeKind};
+
+#[derive(Clone, serde::Serialize)]
+pub struct OccupationResult {
+    pub occupation: f64,
+    pub time: f64,
+}
+
+#[tauri::command]
+async fn simple_occupation(shapes: Vec<SimpleShapeKind>) -> OccupationResult {
+    let start = std::time::Instant::now();
+
+    let occupation = shapes.iter().fold(0.0, |acc, shape| {
+        acc + match shape {
+            SimpleShapeKind::Circle(circle) => circle.rectangular_area(),
+            SimpleShapeKind::Rectangle(rectangle) => rectangle.rectangular_area(),
+        }
+    });
+
+    OccupationResult {
+        occupation,
+        time: start.elapsed().as_secs_f64() * 1000.0,
+    }
+}
+
 fn main() {
-  tauri::Builder::default()
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![simple_occupation])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

@@ -1,5 +1,6 @@
 import { Box, Button, FormControl, FormErrorMessage, FormLabel, HStack, VStack } from "@chakra-ui/react";
 import { readTextFile } from "@tauri-apps/api/fs";
+import { invoke } from "@tauri-apps/api/tauri";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
 import { FilePicker } from "./components/FilePicker";
@@ -22,8 +23,6 @@ export default function App() {
             filepath: null,
           }}
           onSubmit={async (values, { setSubmitting, setFieldError }) => {
-            console.log(values);
-
             if (!values.filepath) {
               return;
             }
@@ -37,6 +36,10 @@ export default function App() {
               console.log(json.shapes);
 
               setShapes(json.shapes);
+              
+              const result = await invoke("simple_occupation", { shapes: json.shapes })
+
+              console.log(result);
             } catch (e) {
               setFieldError("filepath", e as string);
             }
