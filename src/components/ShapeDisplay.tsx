@@ -1,13 +1,12 @@
-import { Box } from "@chakra-ui/react";
 import React, { useEffect, useRef, useState } from "react";
 import { Circle, Rectangle, Shape } from "../interfaces/shape";
 
 export type ShapeDisplayProps = {
   shapes: Shape[];
+  parentRef: React.MutableRefObject<HTMLDivElement>;
 };
 
-export default function ShapeDisplay({ shapes }: ShapeDisplayProps) {
-  const parentRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLDivElement>;
+export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>();
   const [ctx, setCtx] = useState<CanvasRenderingContext2D>();
 
@@ -71,13 +70,14 @@ export default function ShapeDisplay({ shapes }: ShapeDisplayProps) {
   });
 
   return (
-    <Box ref={parentRef} width="full" height="full">
-      <canvas
-        ref={(canvas) => {
-          canvasRef.current = canvas ?? undefined;
-          setCtx(canvas?.getContext("2d") ?? undefined);
-        }}
-      ></canvas>
-    </Box>
+    <canvas
+      ref={(canvas) => {
+        canvasRef.current = canvas ?? undefined;
+        setCtx(canvas?.getContext("2d") ?? undefined);
+      }}
+      style={{
+        position: "absolute",
+      }}
+    ></canvas>
   );
 }
