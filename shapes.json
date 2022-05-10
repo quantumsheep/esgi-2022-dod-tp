@@ -1,0 +1,26 @@
+{
+    "shapes": [
+        {
+            "kind": "circle",
+            "x": 100,
+            "y": 100,
+            "radius": 50,
+            "color": "#ff0000"
+        },
+        {
+            "kind": "circle",
+            "x": 332,
+            "y": 54,
+            "radius": 23,
+            "color": "#00ff00"
+        },
+        {
+            "kind": "rectangle",
+            "x": 78,
+            "y": 21,
+            "width": 40,
+            "height": 10,
+            "color": "#0000ff"
+        }
+    ]
+}

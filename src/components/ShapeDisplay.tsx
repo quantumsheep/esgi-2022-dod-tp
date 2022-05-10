@@ -1,17 +1,83 @@
-import React, { useRef } from "react";
+import { Box } from "@chakra-ui/react";
+import React, { useEffect, useRef, useState } from "react";
+import { Circle, Rectangle, Shape } from "../interfaces/shape";
 
-export type ShapeDisplayProps = {};
+export type ShapeDisplayProps = {
+  shapes: Shape[];
+};
 
-export default function ShapeDisplay(props: ShapeDisplayProps) {
-  const canvasRef = useRef<HTMLCanvasElement>() as React.MutableRefObject<HTMLCanvasElement>;
+export default function ShapeDisplay({ shapes }: ShapeDisplayProps) {
+  const parentRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLDivElement>;
+  const canvasRef = useRef<HTMLCanvasElement>();
+  const [ctx, setCtx] = useState<CanvasRenderingContext2D>();
+
+  const drawCircle = (circle: Circle) => {
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.fillStyle = circle.color;
+    ctx.strokeStyle = "#000000";
+    ctx.arc(circle.x, circle.y, circle.radius, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fill();
+  };
+
+  const drawRectangle = (rectangle: Rectangle) => {
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.fillStyle = rectangle.color;
+    ctx.strokeStyle = "#000000";
+    ctx.rect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+    ctx.stroke();
+    ctx.fill();
+  };
+
+  const drawShape = (shape: Shape) => {
+    switch (shape.kind) {
+      case "circle":
+        drawCircle(shape);
+        break;
+      case "rectangle":
+        drawRectangle(shape);
+        break;
+    }
+  };
+
+  const render = () => {
+    if (!parentRef.current || !canvasRef.current) return;
+    if (!ctx) return;
+
+    const parent = parentRef.current;
+    const canvas = canvasRef.current;
+
+    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+    }
+
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+    for (const shape of shapes) {
+      drawShape(shape);
+    }
+
+    requestAnimationFrame(render);
+  };
+
+  useEffect(() => {
+    requestAnimationFrame(render);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: "100%",
-        height: "100%",
-      }}
-    ></canvas>
+    <Box ref={parentRef} width="full" height="full">
+      <canvas
+        ref={(canvas) => {
+          canvasRef.current = canvas ?? undefined;
+          setCtx(canvas?.getContext("2d") ?? undefined);
+        }}
+      ></canvas>
+    </Box>
   );
 }
