@@ -1,10 +1,10 @@
-import { Box, Button, Flex, FormControl, FormErrorMessage, FormLabel, HStack } from "@chakra-ui/react";
+import { Box, Button, FormControl, FormErrorMessage, FormLabel, HStack, VStack } from "@chakra-ui/react";
+import { readTextFile } from "@tauri-apps/api/fs";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
 import { FilePicker } from "./components/FilePicker";
 import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
-import { readTextFile } from "@tauri-apps/api/fs";
 
 interface FormValues {
   filepath: string | null;
@@ -15,20 +15,8 @@ export default function App() {
   const [shapes, setShapes] = useState<Shape[]>([]);
 
   return (
-    <Flex as="main" p={4} direction="column" minHeight="100vh">
-      <Box
-        ref={shapeDisplayParentRef}
-        position="relative"
-        borderWidth="1px"
-        borderRadius="lg"
-        mb={4}
-        flex={1}
-        shadow="md"
-      >
-        <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
-      </Box>
-
-      <Box borderWidth="1px" borderRadius="lg" p={4} shadow="md">
+    <VStack as="main" p={4} spacing={4} minHeight="100vh">
+      <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
         <Formik<FormValues>
           initialValues={{
             filepath: null,
@@ -81,6 +69,19 @@ export default function App() {
           )}
         </Formik>
       </Box>
-    </Flex>
+
+      <Box
+        ref={shapeDisplayParentRef}
+        position="relative"
+        borderWidth="1px"
+        borderRadius="lg"
+        mb={4}
+        flex={1}
+        w="full"
+        shadow="md"
+      >
+        <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
+      </Box>
+    </VStack>
   );
 }
