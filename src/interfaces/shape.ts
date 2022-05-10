@@ -5,6 +5,12 @@ export interface ShapeBase {
   color: string;
 }
 
+export interface GenericShape extends ShapeBase {
+  kind: 'generic';
+  width: number;
+  height: number;
+}
+
 export interface Circle extends ShapeBase {
   kind: "circle";
 
@@ -17,5 +23,7 @@ export interface Rectangle extends ShapeBase {
   width: number;
   height: number;
 }
+
+
 
 export type Shape = Circle | Rectangle;
