@@ -58,6 +58,15 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   }, [shapes]);
 
   useEffect(() => {
+    function handleResize(e: UIEvent) {
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  });
+
+  useEffect(() => {
     let stop = false;
 
     function resizeCanvas() {
@@ -79,16 +88,10 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
       requestAnimationFrame(resizeCanvas);
     }
 
-    function handleResize(e: UIEvent) {
-      requestAnimationFrame(render);
-    }
-
-    window.addEventListener("resize", handleResize);
     requestAnimationFrame(resizeCanvas);
 
     return () => {
       stop = true;
-      window.removeEventListener("resize", handleResize);
     };
   });
 
