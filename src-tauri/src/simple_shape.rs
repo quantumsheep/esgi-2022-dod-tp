@@ -1,6 +1,6 @@
 use crate::{
     coordinates::{Coordinates, MinMaxCoordinates},
-    shape::{FilterResult, OccupationResult},
+    shape::{FilterResult, MutationResult, OccupationResult},
 };
 use rayon::prelude::*;
 
@@ -103,6 +103,44 @@ pub fn simple_filter(
 
     FilterResult::<SimpleShapeKind> {
         filtered,
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
+    }
+}
+
+pub fn simple_mutation_circles_to_rectangles(
+    shapes: Vec<SimpleShapeKind>,
+    threads: usize,
+) -> MutationResult<SimpleShapeKind> {
+    fn map(shape: SimpleShapeKind) -> SimpleShapeKind {
+        if let SimpleShapeKind::Circle(circle) = shape {
+            SimpleShapeKind::Rectangle(SimpleRectangle {
+                x: circle.x - circle.radius,
+                y: circle.y - circle.radius,
+                color: circle.color,
+                width: circle.radius * 2.0,
+                height: circle.radius * 2.0,
+            })
+        } else {
+            shape
+        }
+    }
+
+    let values;
+    let start = std::time::Instant::now();
+
+    if threads > 0 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        values = pool.install(|| shapes.into_par_iter().map(map).collect());
+    } else {
+        values = shapes.into_iter().map(map).collect();
+    }
+
+    MutationResult::<SimpleShapeKind> {
+        values,
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }

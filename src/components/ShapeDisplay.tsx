@@ -41,11 +41,18 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     if (!ctx) return;
 
     const canvas = canvasRef.current;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = canvas.clientWidth;
+    tempCanvas.height = canvas.clientHeight;
+    const tempCanvasCtx = tempCanvas.getContext("2d");
 
     for (const shape of shapes) {
-      drawShape(ctx, canvas, shape);
+      drawShape(tempCanvasCtx!, tempCanvas, shape);
     }
+
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    ctx.drawImage(tempCanvas, 0, 0);
   };
 
   useEffect(() => {

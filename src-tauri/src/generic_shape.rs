@@ -1,6 +1,6 @@
 use crate::{
     coordinates::{Coordinates, MinMaxCoordinates},
-    shape::{FilterResult, OccupationResult},
+    shape::{FilterResult, MutationResult, OccupationResult},
 };
 use rayon::prelude::*;
 
@@ -112,6 +112,46 @@ pub fn generic_filter(
 
     FilterResult::<GenericShapeKind> {
         filtered,
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
+    }
+}
+
+pub fn generic_mutation_circles_to_rectangles(
+    shapes: Vec<GenericShapeKind>,
+    threads: usize,
+) -> MutationResult<GenericShapeKind> {
+    fn map(shape: GenericShapeKind) -> GenericShapeKind {
+        if let GenericShapeKind::Circle(circle) = shape {
+            GenericShapeKind::Rectangle(GenericShape::<GenericRectangle> {
+                x: circle.x - circle.child.radius,
+                y: circle.y - circle.child.radius,
+                color: circle.color,
+                child: GenericRectangle {
+                    width: circle.child.radius * 2.0,
+                    height: circle.child.radius * 2.0,
+                },
+            })
+        } else {
+            shape
+        }
+    }
+
+    let values;
+    let start = std::time::Instant::now();
+
+    if threads > 0 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        values = pool.install(|| shapes.into_par_iter().map(map).collect());
+    } else {
+        values = shapes.into_iter().map(map).collect();
+    }
+
+    MutationResult::<GenericShapeKind> {
+        values,
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }

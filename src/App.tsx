@@ -14,19 +14,25 @@ import {
   Radio,
   RadioGroup,
   Stack,
+  Switch,
   VStack,
 } from "@chakra-ui/react";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
+import { BsArrowRight } from "react-icons/bs";
 import {
   FilterResult,
   genericFilter,
+  genericMutationCirclesToRectangles,
   genericOccupation,
+  MutationResult,
   objectFilter,
+  objectMutationCirclesToRectangles,
   objectOccupation,
   OccupationResult,
   simpleFilter,
+  simpleMutationCirclesToRectangles,
   simpleOccupation,
 } from "./backend";
 import { FilePicker } from "./components/FilePicker";
@@ -39,12 +45,14 @@ interface FormValues {
   threads: number;
   enableCircles: boolean;
   enableRectangles: boolean;
+  enableCirclesToRectangles: boolean;
 }
 
 interface CalculationResult {
   occupation: number;
   elapsed: {
     filter: number;
+    mutation: number;
     occupation: number;
   };
 }
@@ -65,6 +73,7 @@ export default function App() {
             threads: 1,
             enableCircles: true,
             enableRectangles: true,
+            enableCirclesToRectangles: false,
           }}
           onSubmit={async (values, { setSubmitting, setFieldError }) => {
             if (!values.filepath) {
@@ -81,6 +90,7 @@ export default function App() {
                   occupation: 0,
                   elapsed: {
                     filter: 0,
+                    mutation: 0,
                     occupation: 0,
                   },
                 });
@@ -95,6 +105,8 @@ export default function App() {
                     filterResult = await objectFilter(shapes, "rectangle", values.threads);
                   } else if (values.mode === "generic") {
                     filterResult = await genericFilter(shapes, "rectangle", values.threads);
+                  } else {
+                    throw new Error("Unknown mode");
                   }
                 } else if (!values.enableRectangles) {
                   if (values.mode === "simple") {
@@ -103,10 +115,28 @@ export default function App() {
                     filterResult = await objectFilter(shapes, "circle", values.threads);
                   } else if (values.mode === "generic") {
                     filterResult = await genericFilter(shapes, "circle", values.threads);
+                  } else {
+                    throw new Error("Unknown mode");
                   }
                 }
 
                 shapes = filterResult?.filtered ?? shapes;
+
+                let mutationResult: MutationResult<Shape> | null = null;
+
+                if (values.enableCircles && values.enableCirclesToRectangles) {
+                  if (values.mode === "simple") {
+                    mutationResult = await simpleMutationCirclesToRectangles(shapes, values.threads);
+                  } else if (values.mode === "object") {
+                    mutationResult = await objectMutationCirclesToRectangles(shapes, values.threads);
+                  } else if (values.mode === "generic") {
+                    mutationResult = await genericMutationCirclesToRectangles(shapes, values.threads);
+                  } else {
+                    throw new Error("Unknown mode");
+                  }
+                }
+
+                shapes = mutationResult?.values ?? shapes;
 
                 let occupationResult: OccupationResult | null = null;
 
@@ -124,6 +154,7 @@ export default function App() {
                   occupation: occupationResult.occupation,
                   elapsed: {
                     filter: filterResult?.elapsed ?? 0,
+                    mutation: mutationResult?.elapsed ?? 0,
                     occupation: occupationResult.elapsed,
                   },
                 });
@@ -170,7 +201,7 @@ export default function App() {
                           id="threads"
                           {...field}
                           pattern="([0-9]*(.[0-9]+)?)|(Pipeline)"
-                          format={(value) => value === 0 ? "Pipeline" : value}
+                          format={(value) => (value === 0 ? "Pipeline" : value)}
                           onChange={(value) => {
                             const numberValue = Number(value.replace(/\D/g, ""));
                             props.setFieldValue("threads", Number.isNaN(numberValue) ? 0 : numberValue);
@@ -190,50 +221,86 @@ export default function App() {
                 </HStack>
 
                 <HStack w="full" spacing={4}>
-                  <Field name="mode">
-                    {({ field, meta }: FieldProps<FormValues["mode"]>) => (
-                      <FormControl as="fieldset" isInvalid={!!meta.error && meta.touched} isRequired>
-                        <FormLabel as="legend" htmlFor="mode" hidden>
-                          Mode
-                        </FormLabel>
-                        <RadioGroup {...field} onChange={(value) => props.setFieldValue("mode", value)}>
-                          <Stack spacing={4} direction="row">
-                            <Radio value="simple">Simple</Radio>
-                            <Radio value="object">Object</Radio>
-                            <Radio value="generic">Generic</Radio>
-                          </Stack>
-                        </RadioGroup>
-                        <FormErrorMessage>{meta.error}</FormErrorMessage>
-                      </FormControl>
-                    )}
-                  </Field>
+                  <HStack height="10" p={3} borderWidth="1px" borderRadius="lg" w="full" justify="space-between">
+                    <Field name="mode">
+                      {({ field, meta }: FieldProps<FormValues["mode"]>) => (
+                        <FormControl as="fieldset" isInvalid={!!meta.error && meta.touched} isRequired w="initial">
+                          <FormLabel as="legend" htmlFor="mode" hidden>
+                            Mode
+                          </FormLabel>
+                          <RadioGroup {...field} onChange={(value) => props.setFieldValue("mode", value)}>
+                            <Stack spacing={4} direction="row">
+                              <Radio value="simple">Simple</Radio>
+                              <Radio value="object">Object</Radio>
+                              <Radio value="generic">Generic</Radio>
+                            </Stack>
+                          </RadioGroup>
+                          <FormErrorMessage>{meta.error}</FormErrorMessage>
+                        </FormControl>
+                      )}
+                    </Field>
 
-                  <Stack spacing={5} direction="row">
-                    <Field name="enableCircles">
-                      {({ field, meta }: FieldProps<FormValues["enableCircles"]>) => (
-                        <FormControl isInvalid={!!meta.error && meta.touched}>
-                          <Checkbox
+                    <BsArrowRight />
+
+                    <Stack spacing={5} direction="row">
+                      <Field name="enableCircles">
+                        {({ field, meta }: FieldProps<FormValues["enableCircles"]>) => (
+                          <FormControl isInvalid={!!meta.error && meta.touched}>
+                            <Checkbox
+                              isChecked={field.value}
+                              onChange={(e) => props.setFieldValue("enableCircles", e.target.checked)}
+                            >
+                              Circles
+                            </Checkbox>
+                          </FormControl>
+                        )}
+                      </Field>
+
+                      <Field name="enableRectangles">
+                        {({ field, meta }: FieldProps<FormValues["enableRectangles"]>) => (
+                          <FormControl isInvalid={!!meta.error && meta.touched}>
+                            <Checkbox
+                              isChecked={field.value}
+                              onChange={(e) => props.setFieldValue("enableRectangles", e.target.checked)}
+                            >
+                              Rectangles
+                            </Checkbox>
+                          </FormControl>
+                        )}
+                      </Field>
+                    </Stack>
+
+                    <BsArrowRight />
+
+                    <Field name="enableCirclesToRectangles">
+                      {({ field, meta }: FieldProps<FormValues["enableCirclesToRectangles"]>) => (
+                        <FormControl
+                          isInvalid={!!meta.error && meta.touched}
+                          isDisabled={!props.values.enableCircles}
+                          w="initial"
+                          display="flex"
+                          alignItems="center"
+                        >
+                          <Switch
+                            id="enableCirclesToRectangles"
                             isChecked={field.value}
-                            onChange={(e) => props.setFieldValue("enableCircles", e.target.checked)}
+                            onChange={(e) => props.setFieldValue("enableCirclesToRectangles", e.target.checked)}
+                            paddingInlineEnd={3}
+                            cursor="pointer"
+                          />
+                          <FormLabel
+                            htmlFor="enableCirclesToRectangles"
+                            marginInlineEnd={0}
+                            marginBottom={0}
+                            cursor="pointer"
+                            fontWeight="normal"
                           >
-                            Circles
-                          </Checkbox>
+                            Mutate circles to rectangles
+                          </FormLabel>
                         </FormControl>
                       )}
                     </Field>
-                    <Field name="enableRectangles">
-                      {({ field, meta }: FieldProps<FormValues["enableRectangles"]>) => (
-                        <FormControl isInvalid={!!meta.error && meta.touched}>
-                          <Checkbox
-                            isChecked={field.value}
-                            onChange={(e) => props.setFieldValue("enableRectangles", e.target.checked)}
-                          >
-                            Rectangles
-                          </Checkbox>
-                        </FormControl>
-                      )}
-                    </Field>
-                  </Stack>
+                  </HStack>
 
                   <Button type="submit">Submit</Button>
                 </HStack>
@@ -258,10 +325,18 @@ export default function App() {
 
       {calculationResult && (
         <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
-          <Box width="full" textAlign="center" opacity={0.75}>
-            Filtering calculated in {calculationResult.elapsed.filter.toFixed(6)}ms. Occupation calculated in{" "}
-            {calculationResult.elapsed.occupation.toFixed(6)}ms. Result: {calculationResult.occupation}
-          </Box>
+          <HStack width="full" justifyContent="center" textAlign="center" opacity={0.75}>
+            {calculationResult.elapsed.filter !== 0 && (
+              <Box>Filtering calculated in {calculationResult.elapsed.filter.toFixed(6)}ms.</Box>
+            )}
+            {calculationResult.elapsed.mutation !== 0 && (
+              <Box>Mutation calculated in {calculationResult.elapsed.mutation.toFixed(6)}ms.</Box>
+            )}
+            {calculationResult.elapsed.occupation !== 0 && (
+              <Box>Occupation calculated in {calculationResult.elapsed.occupation.toFixed(6)}ms.</Box>
+            )}
+            <Box>Result: {calculationResult.occupation}</Box>
+          </HStack>
         </Box>
       )}
     </VStack>

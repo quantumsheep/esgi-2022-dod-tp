@@ -1,6 +1,6 @@
 use crate::{
     coordinates::{Coordinates, MinMaxCoordinates},
-    shape::{FilterResult, OccupationResult},
+    shape::{FilterResult, MutationResult, OccupationResult},
 };
 use rayon::prelude::*;
 
@@ -106,6 +106,46 @@ pub fn object_filter(
 
     FilterResult::<ObjectShapeKind> {
         filtered,
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
+    }
+}
+
+pub fn object_mutation_circles_to_rectangles(
+    shapes: Vec<ObjectShapeKind>,
+    threads: usize,
+) -> MutationResult<ObjectShapeKind> {
+    fn map(shape: ObjectShapeKind) -> ObjectShapeKind {
+        if let ObjectShapeKind::Circle(circle) = shape {
+            ObjectShapeKind::Rectangle(ObjectRectangle {
+                base: ObjectShape {
+                    x: circle.base.x - circle.radius,
+                    y: circle.base.y - circle.radius,
+                    color: circle.base.color,
+                },
+                width: circle.radius * 2.0,
+                height: circle.radius * 2.0,
+            })
+        } else {
+            shape
+        }
+    }
+
+    let values;
+    let start = std::time::Instant::now();
+
+    if threads > 0 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        values = pool.install(|| shapes.into_par_iter().map(map).collect());
+    } else {
+        values = shapes.into_iter().map(map).collect();
+    }
+
+    MutationResult::<ObjectShapeKind> {
+        values,
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }
