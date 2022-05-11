@@ -1,3 +1,9 @@
+use crate::{
+    coordinates::{Coordinates, MinMaxCoordinates},
+    shape::{FilterResult, OccupationResult},
+};
+use rayon::prelude::*;
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum GenericShapeKind {
     Circle(GenericShape<GenericCircle>),
@@ -22,4 +28,90 @@ pub struct GenericCircle {
 pub struct GenericRectangle {
     pub width: f64,
     pub height: f64,
+}
+
+pub fn generic_occupation(shapes: Vec<GenericShapeKind>, threads: usize) -> OccupationResult {
+    fn fold(coordinates: MinMaxCoordinates, shape: &GenericShapeKind) -> MinMaxCoordinates {
+        match shape {
+            GenericShapeKind::Circle(circle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(
+                    circle.x - circle.child.radius,
+                    circle.y - circle.child.radius,
+                ),
+                Coordinates::new(
+                    circle.x + circle.child.radius,
+                    circle.y + circle.child.radius,
+                ),
+            )),
+            GenericShapeKind::Rectangle(rectangle) => {
+                coordinates.min_max(&MinMaxCoordinates::from(
+                    Coordinates::new(rectangle.x, rectangle.y),
+                    Coordinates::new(
+                        rectangle.x + rectangle.child.width,
+                        rectangle.y + rectangle.child.height,
+                    ),
+                ))
+            }
+        }
+    }
+
+    let coordinates;
+    let start = std::time::Instant::now();
+
+    if threads > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        coordinates = pool.install(|| {
+            shapes
+                .par_iter()
+                .fold(|| MinMaxCoordinates::new(), fold)
+                .reduce(|| MinMaxCoordinates::new(), |a, b| a.min_max(&b))
+        });
+    } else {
+        coordinates = shapes.iter().fold(MinMaxCoordinates::new(), fold);
+    }
+
+    OccupationResult {
+        occupation: coordinates.area(),
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
+    }
+}
+
+pub fn generic_filter(
+    shapes: Vec<GenericShapeKind>,
+    kind: String,
+    threads: usize,
+) -> FilterResult<GenericShapeKind> {
+    let kind = kind.to_lowercase();
+    let is_circle = kind == "circle";
+    let is_rectangle = kind == "rectangle";
+
+    let filter = |shape: &GenericShapeKind| -> bool {
+        match shape {
+            GenericShapeKind::Circle(_) => is_circle,
+            GenericShapeKind::Rectangle(_) => is_rectangle,
+        }
+    };
+
+    let filtered;
+    let start = std::time::Instant::now();
+
+    if threads > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        filtered = pool.install(|| shapes.into_par_iter().filter(filter).collect());
+    } else {
+        filtered = shapes.into_iter().filter(|a| filter(a)).collect();
+    }
+
+    FilterResult::<GenericShapeKind> {
+        filtered,
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
+    }
 }
