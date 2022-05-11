@@ -123,7 +123,7 @@ export default function App() {
       >
         <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
         {occupationResult && (
-          <Box position="absolute" width="full" textAlign="center" opacity={0.75}>
+          <Box position="absolute" width="full" textAlign="center" opacity={0.75} backgroundColor="gray.50">
             Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
           </Box>
         )}
