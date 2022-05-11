@@ -1,8 +1,8 @@
-import { Box, Button, FormControl, FormErrorMessage, FormLabel, HStack, VStack } from "@chakra-ui/react";
+import { Box, Button, FormControl, FormErrorMessage, FormLabel, HStack, VStack, Text } from "@chakra-ui/react";
 import { readTextFile } from "@tauri-apps/api/fs";
-import { invoke } from "@tauri-apps/api/tauri";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
+import { simpleOccupation, SimpleOccupationResult } from "./backend";
 import { FilePicker } from "./components/FilePicker";
 import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
@@ -14,6 +14,8 @@ interface FormValues {
 export default function App() {
   const shapeDisplayParentRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLDivElement>;
   const [shapes, setShapes] = useState<Shape[]>([]);
+
+  const [occupationResult, setOccupationResult] = useState<SimpleOccupationResult>();
 
   return (
     <VStack as="main" p={4} spacing={4} minHeight="100vh">
@@ -28,16 +30,13 @@ export default function App() {
             }
 
             try {
-              console.log("Reading text");
               const data = await readTextFile(values.filepath);
-              console.log(`Data: ${data}`);
               const json = JSON.parse(data);
 
-              console.log(json.shapes);
-
               setShapes(json.shapes);
-              
-              const result = await invoke("simple_occupation", { shapes: json.shapes })
+
+              const result = await simpleOccupation(json.shapes);
+              setOccupationResult(result);
 
               console.log(result);
             } catch (e) {
@@ -84,6 +83,11 @@ export default function App() {
         shadow="md"
       >
         <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
+        {occupationResult && (
+          <Box position="absolute" width="full" textAlign="center" opacity={0.75}>
+            Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
+          </Box>
+        )}
       </Box>
     </VStack>
   );

@@ -8,13 +8,13 @@ mod simple_shape;
 use simple_shape::{SimpleShape, SimpleShapeKind};
 
 #[derive(Clone, serde::Serialize)]
-pub struct OccupationResult {
+pub struct SimpleOccupationResult {
     pub occupation: f64,
-    pub time: f64,
+    pub elapsed: f64,
 }
 
 #[tauri::command]
-async fn simple_occupation(shapes: Vec<SimpleShapeKind>) -> OccupationResult {
+async fn simple_occupation(shapes: Vec<SimpleShapeKind>) -> SimpleOccupationResult {
     let start = std::time::Instant::now();
 
     let occupation = shapes.iter().fold(0.0, |acc, shape| {
@@ -24,9 +24,9 @@ async fn simple_occupation(shapes: Vec<SimpleShapeKind>) -> OccupationResult {
         }
     });
 
-    OccupationResult {
+    SimpleOccupationResult {
         occupation,
-        time: start.elapsed().as_secs_f64() * 1000.0,
+        elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }
 
