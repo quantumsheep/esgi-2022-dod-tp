@@ -79,7 +79,7 @@ export default function App() {
                   <Field name="filepath">
                     {({ field, meta }: FieldProps<FormValues["filepath"]>) => (
                       <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
-                        <FormLabel htmlFor="filepath">Save file</FormLabel>
+                        <FormLabel htmlFor="filepath">Shape file</FormLabel>
                         <FilePicker
                           {...field}
                           id="filepath"
