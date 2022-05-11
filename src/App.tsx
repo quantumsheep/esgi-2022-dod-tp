@@ -111,13 +111,13 @@ export default function App() {
         </Formik>
       </Box>
 
-      <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
-        {occupationResult && (
+      {occupationResult && (
+        <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
           <Box width="full" textAlign="center" opacity={0.75}>
             Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
           </Box>
-        )}
-      </Box>
+        </Box>
+      )}
 
       <Box
         ref={shapeDisplayParentRef}
