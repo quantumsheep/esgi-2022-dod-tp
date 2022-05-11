@@ -10,9 +10,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>();
   const [ctx, setCtx] = useState<CanvasRenderingContext2D>();
 
-  const drawCircle = (circle: Circle) => {
-    if (!ctx) return;
-
+  const drawCircle = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, circle: Circle) => {
     ctx.beginPath();
     ctx.fillStyle = circle.color;
     ctx.strokeStyle = "#000000";
@@ -21,9 +19,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     ctx.fill();
   };
 
-  const drawRectangle = (rectangle: Rectangle) => {
-    if (!ctx) return;
-
+  const drawRectangle = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, rectangle: Rectangle) => {
     ctx.beginPath();
     ctx.fillStyle = rectangle.color;
     ctx.strokeStyle = "#000000";
@@ -32,11 +28,11 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     ctx.fill();
   };
 
-  const drawShape = (shape: Shape) => {
+  const drawShape = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, shape: Shape) => {
     if (shape.Circle) {
-      drawCircle(shape.Circle);
+      drawCircle(ctx, canvas, shape.Circle);
     } else if (shape.Rectangle) {
-      drawRectangle(shape.Rectangle);
+      drawRectangle(ctx, canvas, shape.Rectangle);
     }
   };
 
@@ -48,7 +44,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const shape of shapes) {
-      drawShape(shape);
+      drawShape(ctx, canvas, shape);
     }
   };
 
