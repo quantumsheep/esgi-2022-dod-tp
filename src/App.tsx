@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormErrorMessage,
   FormLabel,
@@ -18,7 +19,16 @@ import {
 import { readTextFile } from "@tauri-apps/api/fs";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
-import { genericOccupation, objectOccupation, OccupationResult, simpleOccupation } from "./backend";
+import {
+  FilterResult,
+  genericFilter,
+  genericOccupation,
+  objectFilter,
+  objectOccupation,
+  OccupationResult,
+  simpleFilter,
+  simpleOccupation,
+} from "./backend";
 import { FilePicker } from "./components/FilePicker";
 import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
@@ -27,13 +37,23 @@ interface FormValues {
   filepath: string | null;
   mode: "simple" | "object" | "generic";
   threads: number;
+  enableCircles: boolean;
+  enableRectangles: boolean;
+}
+
+interface CalculationResult {
+  occupation: number;
+  elapsed: {
+    filter: number;
+    occupation: number;
+  };
 }
 
 export default function App() {
   const shapeDisplayParentRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLDivElement>;
   const [shapes, setShapes] = useState<Shape[]>([]);
 
-  const [occupationResult, setOccupationResult] = useState<OccupationResult>();
+  const [calculationResult, setCalculationResult] = useState<CalculationResult>();
 
   return (
     <VStack as="main" p={4} spacing={4} minHeight="100vh">
@@ -43,6 +63,8 @@ export default function App() {
             filepath: null,
             mode: "simple",
             threads: 1,
+            enableCircles: true,
+            enableRectangles: true,
           }}
           onSubmit={async (values, { setSubmitting, setFieldError }) => {
             if (!values.filepath) {
@@ -53,19 +75,63 @@ export default function App() {
               const data = await readTextFile(values.filepath);
               const json = JSON.parse(data);
 
-              setShapes(json.shapes);
+              if (!values.enableCircles && !values.enableRectangles) {
+                setShapes([]);
+                setCalculationResult({
+                  occupation: 0,
+                  elapsed: {
+                    filter: 0,
+                    occupation: 0,
+                  },
+                });
+              } else {
+                let shapes = json.shapes;
+                let filterResult: FilterResult<Shape> | null = null;
 
-              if (values.mode === "simple") {
-                const result = await simpleOccupation(json.shapes, values.threads);
-                setOccupationResult(result);
-              } else if (values.mode === "object") {
-                const result = await objectOccupation(json.shapes, values.threads);
-                setOccupationResult(result);
-              } else if (values.mode === "generic") {
-                const result = await genericOccupation(json.shapes, values.threads);
-                setOccupationResult(result);
+                if (!values.enableCircles) {
+                  if (values.mode === "simple") {
+                    filterResult = await simpleFilter(shapes, "rectangle", values.threads);
+                  } else if (values.mode === "object") {
+                    filterResult = await objectFilter(shapes, "rectangle", values.threads);
+                  } else if (values.mode === "generic") {
+                    filterResult = await genericFilter(shapes, "rectangle", values.threads);
+                  }
+                } else if (!values.enableRectangles) {
+                  if (values.mode === "simple") {
+                    filterResult = await simpleFilter(shapes, "circle", values.threads);
+                  } else if (values.mode === "object") {
+                    filterResult = await objectFilter(shapes, "circle", values.threads);
+                  } else if (values.mode === "generic") {
+                    filterResult = await genericFilter(shapes, "circle", values.threads);
+                  }
+                }
+
+                shapes = filterResult?.filtered ?? shapes;
+
+                let occupationResult: OccupationResult | null = null;
+
+                if (values.mode === "simple") {
+                  occupationResult = await simpleOccupation(shapes, values.threads);
+                } else if (values.mode === "object") {
+                  occupationResult = await objectOccupation(shapes, values.threads);
+                } else if (values.mode === "generic") {
+                  occupationResult = await genericOccupation(shapes, values.threads);
+                } else {
+                  throw new Error("Unknown mode");
+                }
+
+                setCalculationResult({
+                  occupation: occupationResult.occupation,
+                  elapsed: {
+                    filter: filterResult?.elapsed ?? 0,
+                    occupation: occupationResult.elapsed,
+                  },
+                });
+                setShapes(shapes);
               }
             } catch (e) {
+              console.error(e);
+
               if (e instanceof Error) {
                 setFieldError("filepath", e.message);
               } else {
@@ -113,7 +179,7 @@ export default function App() {
                   </Field>
                 </HStack>
 
-                <HStack w="full" spacing={4} align="end">
+                <HStack w="full" spacing={4}>
                   <Field name="mode">
                     {({ field, meta }: FieldProps<FormValues["mode"]>) => (
                       <FormControl as="fieldset" isInvalid={!!meta.error && meta.touched} isRequired>
@@ -131,6 +197,33 @@ export default function App() {
                       </FormControl>
                     )}
                   </Field>
+
+                  <Stack spacing={5} direction="row">
+                    <Field name="enableCircles">
+                      {({ field, meta }: FieldProps<FormValues["enableCircles"]>) => (
+                        <FormControl isInvalid={!!meta.error && meta.touched}>
+                          <Checkbox
+                            isChecked={field.value}
+                            onChange={(e) => props.setFieldValue("enableCircles", e.target.checked)}
+                          >
+                            Circles
+                          </Checkbox>
+                        </FormControl>
+                      )}
+                    </Field>
+                    <Field name="enableRectangles">
+                      {({ field, meta }: FieldProps<FormValues["enableRectangles"]>) => (
+                        <FormControl isInvalid={!!meta.error && meta.touched}>
+                          <Checkbox
+                            isChecked={field.value}
+                            onChange={(e) => props.setFieldValue("enableRectangles", e.target.checked)}
+                          >
+                            Rectangles
+                          </Checkbox>
+                        </FormControl>
+                      )}
+                    </Field>
+                  </Stack>
 
                   <Button type="submit">Submit</Button>
                 </HStack>
@@ -153,10 +246,11 @@ export default function App() {
         <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
       </Box>
 
-      {occupationResult && (
+      {calculationResult && (
         <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
           <Box width="full" textAlign="center" opacity={0.75}>
-            Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
+            Filtering calculated in {calculationResult.elapsed.filter.toFixed(6)}ms. Occupation calculated in{" "}
+            {calculationResult.elapsed.occupation.toFixed(6)}ms. Result: {calculationResult.occupation}
           </Box>
         </Box>
       )}
