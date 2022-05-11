@@ -49,7 +49,7 @@ pub fn simple_occupation(shapes: Vec<SimpleShapeKind>, threads: usize) -> Occupa
     let coordinates;
     let start = std::time::Instant::now();
 
-    if threads > 1 {
+    if threads > 0 {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build()
@@ -90,7 +90,7 @@ pub fn simple_filter(
     let filtered;
     let start = std::time::Instant::now();
 
-    if threads > 1 {
+    if threads > 0 {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build()

@@ -166,8 +166,17 @@ export default function App() {
                     {({ field, meta }: FieldProps<FormValues["threads"]>) => (
                       <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
                         <FormLabel htmlFor="threads">Threads</FormLabel>
-                        <NumberInput {...field} onChange={(value) => props.setFieldValue("threads", +value)} min={1}>
-                          <NumberInputField id="threads" />
+                        <NumberInput
+                          id="threads"
+                          {...field}
+                          format={(value) => value === 0 ? "Pipeline" : value}
+                          onChange={(value) => {
+                            const numberValue = Number(value.replace(/\D/g, ""));
+                            props.setFieldValue("threads", Number.isNaN(numberValue) ? 0 : numberValue);
+                          }}
+                          min={0}
+                        >
+                          <NumberInputField />
                           <NumberInputStepper>
                             <NumberIncrementStepper />
                             <NumberDecrementStepper />
