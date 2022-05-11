@@ -66,7 +66,11 @@ export default function App() {
                 setOccupationResult(result);
               }
             } catch (e) {
-              setFieldError("filepath", e as string);
+              if (e instanceof Error) {
+                setFieldError("filepath", e.message);
+              } else {
+                setFieldError("filepath", "Unknown error");
+              }
             }
 
             setSubmitting(false);
@@ -136,14 +140,6 @@ export default function App() {
         </Formik>
       </Box>
 
-      {occupationResult && (
-        <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
-          <Box width="full" textAlign="center" opacity={0.75}>
-            Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
-          </Box>
-        </Box>
-      )}
-
       <Box
         ref={shapeDisplayParentRef}
         position="relative"
@@ -156,6 +152,14 @@ export default function App() {
       >
         <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
       </Box>
+
+      {occupationResult && (
+        <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
+          <Box width="full" textAlign="center" opacity={0.75}>
+            Occupation calculated in {occupationResult.elapsed.toFixed(6)}ms. Result: {occupationResult.occupation}
+          </Box>
+        </Box>
+      )}
     </VStack>
   );
 }

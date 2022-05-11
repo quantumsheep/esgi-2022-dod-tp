@@ -44,15 +44,8 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     if (!parentRef.current || !canvasRef.current) return;
     if (!ctx) return;
 
-    const parent = parentRef.current;
     const canvas = canvasRef.current;
-
-    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-    }
-
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const shape of shapes) {
       drawShape(shape);
@@ -65,12 +58,38 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   }, [shapes]);
 
   useEffect(() => {
+    let stop = false;
+
+    function resizeCanvas() {
+      if (!parentRef.current || !canvasRef.current) return;
+      if (stop) return;
+
+      const parent = parentRef.current;
+      const canvas = canvasRef.current;
+
+      const dimension = parent.getBoundingClientRect();
+
+      if (canvas.width !== dimension.width || canvas.height !== dimension.height) {
+        canvas.width = dimension.width;
+        canvas.height = dimension.height;
+
+        render();
+      }
+
+      requestAnimationFrame(resizeCanvas);
+    }
+
     function handleResize(e: UIEvent) {
       requestAnimationFrame(render);
     }
 
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    requestAnimationFrame(resizeCanvas);
+
+    return () => {
+      stop = true;
+      window.removeEventListener("resize", handleResize);
+    };
   });
 
   return (
