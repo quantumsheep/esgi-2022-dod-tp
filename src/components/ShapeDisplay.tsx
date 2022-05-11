@@ -57,13 +57,20 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     for (const shape of shapes) {
       drawShape(shape);
     }
-
-    requestAnimationFrame(render);
   };
 
   useEffect(() => {
     requestAnimationFrame(render);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shapes]);
+
+  useEffect(() => {
+    function handleResize(e: UIEvent) {
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   });
 
   return (
