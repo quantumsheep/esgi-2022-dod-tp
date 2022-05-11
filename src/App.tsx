@@ -169,6 +169,7 @@ export default function App() {
                         <NumberInput
                           id="threads"
                           {...field}
+                          pattern="([0-9]*(.[0-9]+)?)|(Pipeline)"
                           format={(value) => value === 0 ? "Pipeline" : value}
                           onChange={(value) => {
                             const numberValue = Number(value.replace(/\D/g, ""));
