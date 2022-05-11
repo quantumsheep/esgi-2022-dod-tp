@@ -6,11 +6,11 @@ export interface OccupationResult {
   elapsed: number;
 }
 
-export async function simpleOccupation(shapes: Shape[]) {
-  return await invoke<OccupationResult>("simple_occupation", { shapes });
+export async function simpleOccupation(shapes: Shape[], threads: number) {
+  return await invoke<OccupationResult>("simple_occupation", { shapes, threads });
 }
 
-export async function objectOccupation(shapes: Shape[]) {
+export async function objectOccupation(shapes: Shape[], threads: number) {
   const shapesAsObject = shapes.map((enu) => {
     for (const key in enu) {
       const { x, y, color, ...rest } = enu[key as keyof Shape];
@@ -25,10 +25,10 @@ export async function objectOccupation(shapes: Shape[]) {
     throw new Error("Unknown shape");
   });
 
-  return await invoke<OccupationResult>("object_occupation", { shapes: shapesAsObject });
+  return await invoke<OccupationResult>("object_occupation", { shapes: shapesAsObject, threads });
 }
 
-export async function genericOccupation(shapes: Shape[]) {
+export async function genericOccupation(shapes: Shape[], threads: number) {
   const shapesAsGeneric = shapes.map((enu) => {
     for (const key in enu) {
       const { x, y, color, ...child } = enu[key as keyof Shape];
@@ -43,5 +43,5 @@ export async function genericOccupation(shapes: Shape[]) {
     throw new Error("Unknown shape");
   });
 
-  return await invoke<OccupationResult>("generic_occupation", { shapes: shapesAsGeneric });
+  return await invoke<OccupationResult>("generic_occupation", { shapes: shapesAsGeneric, threads });
 }

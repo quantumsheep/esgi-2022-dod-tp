@@ -10,7 +10,9 @@ mod utils;
 
 use generic_shape::GenericShapeKind;
 use object_shape::ObjectShapeKind;
+use rayon::prelude::*;
 use simple_shape::SimpleShapeKind;
+use utils::{Coordinates, MinMaxCoordinates};
 
 #[derive(Clone, serde::Serialize)]
 pub struct OccupationResult {
@@ -19,97 +21,138 @@ pub struct OccupationResult {
 }
 
 #[tauri::command]
-async fn simple_occupation(shapes: Vec<SimpleShapeKind>) -> OccupationResult {
-    let start = std::time::Instant::now();
-
-    let mut min_x = f64::MAX;
-    let mut min_y = f64::MAX;
-    let mut max_x = f64::MIN;
-    let mut max_y = f64::MIN;
-
-    for shape in shapes {
+async fn simple_occupation(shapes: Vec<SimpleShapeKind>, threads: usize) -> OccupationResult {
+    fn fold(coordinates: MinMaxCoordinates, shape: &SimpleShapeKind) -> MinMaxCoordinates {
         match shape {
-            SimpleShapeKind::Circle(circle) => {
-                min_x = utils::min(min_x, circle.x - circle.radius);
-                min_y = utils::min(min_y, circle.y - circle.radius);
-                max_x = utils::max(max_x, circle.x + circle.radius);
-                max_y = utils::max(max_y, circle.y + circle.radius);
-            }
-            SimpleShapeKind::Rectangle(rectangle) => {
-                min_x = utils::min(min_x, rectangle.x);
-                min_y = utils::min(min_y, rectangle.y);
-                max_x = utils::max(max_x, rectangle.x + rectangle.width);
-                max_y = utils::max(max_y, rectangle.y + rectangle.height);
-            }
+            SimpleShapeKind::Circle(circle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(circle.x - circle.radius, circle.y - circle.radius),
+                Coordinates::new(circle.x + circle.radius, circle.y + circle.radius),
+            )),
+            SimpleShapeKind::Rectangle(rectangle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(rectangle.x, rectangle.y),
+                Coordinates::new(
+                    rectangle.x + rectangle.width,
+                    rectangle.y + rectangle.height,
+                ),
+            )),
         }
     }
 
+    let mut coordinates = MinMaxCoordinates::new();
+    let start = std::time::Instant::now();
+
+    if threads > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        coordinates = pool.install(|| {
+            shapes
+                .par_iter()
+                .fold(|| MinMaxCoordinates::new(), fold)
+                .reduce(|| MinMaxCoordinates::new(), |a, b| a.min_max(&b))
+        });
+    } else {
+        coordinates = shapes.iter().fold(coordinates, fold);
+    }
+
     OccupationResult {
-        occupation: (max_x - min_x) * (max_y - min_y),
+        occupation: coordinates.area(),
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }
 
 #[tauri::command]
-async fn object_occupation(shapes: Vec<ObjectShapeKind>) -> OccupationResult {
-    let start = std::time::Instant::now();
-
-    let mut min_x = f64::MAX;
-    let mut min_y = f64::MAX;
-    let mut max_x = f64::MIN;
-    let mut max_y = f64::MIN;
-
-    for shape in shapes {
+async fn object_occupation(shapes: Vec<ObjectShapeKind>, threads: usize) -> OccupationResult {
+    fn fold(coordinates: MinMaxCoordinates, shape: &ObjectShapeKind) -> MinMaxCoordinates {
         match shape {
-            ObjectShapeKind::Circle(circle) => {
-                min_x = utils::min(min_x, circle.base.x - circle.radius);
-                min_y = utils::min(min_y, circle.base.y - circle.radius);
-                max_x = utils::max(max_x, circle.base.x + circle.radius);
-                max_y = utils::max(max_y, circle.base.y + circle.radius);
-            }
-            ObjectShapeKind::Rectangle(rectangle) => {
-                min_x = utils::min(min_x, rectangle.base.x);
-                min_y = utils::min(min_y, rectangle.base.y);
-                max_x = utils::max(max_x, rectangle.base.x + rectangle.width);
-                max_y = utils::max(max_y, rectangle.base.y + rectangle.height);
-            }
+            ObjectShapeKind::Circle(circle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(circle.base.x - circle.radius, circle.base.y - circle.radius),
+                Coordinates::new(circle.base.x + circle.radius, circle.base.y + circle.radius),
+            )),
+            ObjectShapeKind::Rectangle(rectangle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(rectangle.base.x, rectangle.base.y),
+                Coordinates::new(
+                    rectangle.base.x + rectangle.width,
+                    rectangle.base.y + rectangle.height,
+                ),
+            )),
         }
     }
 
+    let mut coordinates = MinMaxCoordinates::new();
+    let start = std::time::Instant::now();
+
+    if threads > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        coordinates = pool.install(|| {
+            shapes
+                .par_iter()
+                .fold(|| MinMaxCoordinates::new(), fold)
+                .reduce(|| MinMaxCoordinates::new(), |a, b| a.min_max(&b))
+        });
+    } else {
+        coordinates = shapes.iter().fold(coordinates, fold);
+    }
+
     OccupationResult {
-        occupation: (max_x - min_x) * (max_y - min_y),
+        occupation: coordinates.area(),
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }
 
 #[tauri::command]
-async fn generic_occupation(shapes: Vec<GenericShapeKind>) -> OccupationResult {
-    let start = std::time::Instant::now();
-
-    let mut min_x = f64::MAX;
-    let mut min_y = f64::MAX;
-    let mut max_x = f64::MIN;
-    let mut max_y = f64::MIN;
-
-    for shape in shapes {
+async fn generic_occupation(shapes: Vec<GenericShapeKind>, threads: usize) -> OccupationResult {
+    fn fold(coordinates: MinMaxCoordinates, shape: &GenericShapeKind) -> MinMaxCoordinates {
         match shape {
-            GenericShapeKind::Circle(circle) => {
-                min_x = utils::min(min_x, circle.x - circle.child.radius);
-                min_y = utils::min(min_y, circle.y - circle.child.radius);
-                max_x = utils::max(max_x, circle.x + circle.child.radius);
-                max_y = utils::max(max_y, circle.y + circle.child.radius);
-            }
+            GenericShapeKind::Circle(circle) => coordinates.min_max(&MinMaxCoordinates::from(
+                Coordinates::new(
+                    circle.x - circle.child.radius,
+                    circle.y - circle.child.radius,
+                ),
+                Coordinates::new(
+                    circle.x + circle.child.radius,
+                    circle.y + circle.child.radius,
+                ),
+            )),
             GenericShapeKind::Rectangle(rectangle) => {
-                min_x = utils::min(min_x, rectangle.x);
-                min_y = utils::min(min_y, rectangle.y);
-                max_x = utils::max(max_x, rectangle.x + rectangle.child.width);
-                max_y = utils::max(max_y, rectangle.y + rectangle.child.height);
+                coordinates.min_max(&MinMaxCoordinates::from(
+                    Coordinates::new(rectangle.x, rectangle.y),
+                    Coordinates::new(
+                        rectangle.x + rectangle.child.width,
+                        rectangle.y + rectangle.child.height,
+                    ),
+                ))
             }
         }
     }
 
+    let mut coordinates = MinMaxCoordinates::new();
+    let start = std::time::Instant::now();
+
+    if threads > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .unwrap();
+
+        coordinates = pool.install(|| {
+            shapes
+                .par_iter()
+                .fold(|| MinMaxCoordinates::new(), fold)
+                .reduce(|| MinMaxCoordinates::new(), |a, b| a.min_max(&b))
+        });
+    } else {
+        coordinates = shapes.iter().fold(coordinates, fold);
+    }
+
     OccupationResult {
-        occupation: (max_x - min_x) * (max_y - min_y),
+        occupation: coordinates.area(),
         elapsed: start.elapsed().as_secs_f64() * 1000.0,
     }
 }

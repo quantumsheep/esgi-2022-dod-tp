@@ -5,6 +5,11 @@ import {
   FormErrorMessage,
   FormLabel,
   HStack,
+  NumberDecrementStepper,
+  NumberIncrementStepper,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
   Radio,
   RadioGroup,
   Stack,
@@ -13,7 +18,7 @@ import {
 import { readTextFile } from "@tauri-apps/api/fs";
 import { Field, FieldProps, Form, Formik } from "formik";
 import React, { useRef, useState } from "react";
-import { objectOccupation, simpleOccupation, OccupationResult, genericOccupation } from "./backend";
+import { genericOccupation, objectOccupation, OccupationResult, simpleOccupation } from "./backend";
 import { FilePicker } from "./components/FilePicker";
 import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
@@ -21,6 +26,7 @@ import { Shape } from "./interfaces/shape";
 interface FormValues {
   filepath: string | null;
   mode: "simple" | "object" | "generic";
+  threads: number;
 }
 
 export default function App() {
@@ -36,6 +42,7 @@ export default function App() {
           initialValues={{
             filepath: null,
             mode: "simple",
+            threads: 1,
           }}
           onSubmit={async (values, { setSubmitting, setFieldError }) => {
             if (!values.filepath) {
@@ -49,13 +56,13 @@ export default function App() {
               setShapes(json.shapes);
 
               if (values.mode === "simple") {
-                const result = await simpleOccupation(json.shapes);
+                const result = await simpleOccupation(json.shapes, values.threads);
                 setOccupationResult(result);
               } else if (values.mode === "object") {
-                const result = await objectOccupation(json.shapes);
+                const result = await objectOccupation(json.shapes, values.threads);
                 setOccupationResult(result);
               } else if (values.mode === "generic") {
-                const result = await genericOccupation(json.shapes);
+                const result = await genericOccupation(json.shapes, values.threads);
                 setOccupationResult(result);
               }
             } catch (e) {
@@ -85,26 +92,44 @@ export default function App() {
                     )}
                   </Field>
 
-                  <Button type="submit">Submit</Button>
+                  <Field name="threads">
+                    {({ field, meta }: FieldProps<FormValues["threads"]>) => (
+                      <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
+                        <FormLabel htmlFor="threads">Threads</FormLabel>
+                        <NumberInput {...field} onChange={(value) => props.setFieldValue("threads", +value)} min={1}>
+                          <NumberInputField id="threads" />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper />
+                            <NumberDecrementStepper />
+                          </NumberInputStepper>
+                        </NumberInput>
+                        <FormErrorMessage>{meta.error}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
                 </HStack>
 
-                <Field name="mode">
-                  {({ field, meta }: FieldProps<FormValues["mode"]>) => (
-                    <FormControl as="fieldset" isInvalid={!!meta.error && meta.touched} isRequired>
-                      <FormLabel as="legend" htmlFor="mode" hidden>
-                        Mode
-                      </FormLabel>
-                      <RadioGroup {...field} onChange={(value) => props.setFieldValue("mode", value)}>
-                        <Stack spacing={4} direction="row">
-                          <Radio value="simple">Simple</Radio>
-                          <Radio value="object">Object</Radio>
-                          <Radio value="generic">Generic</Radio>
-                        </Stack>
-                      </RadioGroup>
-                      <FormErrorMessage>{meta.error}</FormErrorMessage>
-                    </FormControl>
-                  )}
-                </Field>
+                <HStack w="full" spacing={4} align="end">
+                  <Field name="mode">
+                    {({ field, meta }: FieldProps<FormValues["mode"]>) => (
+                      <FormControl as="fieldset" isInvalid={!!meta.error && meta.touched} isRequired>
+                        <FormLabel as="legend" htmlFor="mode" hidden>
+                          Mode
+                        </FormLabel>
+                        <RadioGroup {...field} onChange={(value) => props.setFieldValue("mode", value)}>
+                          <Stack spacing={4} direction="row">
+                            <Radio value="simple">Simple</Radio>
+                            <Radio value="object">Object</Radio>
+                            <Radio value="generic">Generic</Radio>
+                          </Stack>
+                        </RadioGroup>
+                        <FormErrorMessage>{meta.error}</FormErrorMessage>
+                      </FormControl>
+                    )}
+                  </Field>
+
+                  <Button type="submit">Submit</Button>
+                </HStack>
               </VStack>
             </Form>
           )}
