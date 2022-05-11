@@ -33,13 +33,10 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   };
 
   const drawShape = (shape: Shape) => {
-    switch (shape.kind) {
-      case "circle":
-        drawCircle(shape);
-        break;
-      case "rectangle":
-        drawRectangle(shape);
-        break;
+    if (shape.Circle) {
+      drawCircle(shape.Circle);
+    } else if (shape.Rectangle) {
+      drawRectangle(shape.Rectangle);
     }
   };
 
@@ -47,26 +44,55 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     if (!parentRef.current || !canvasRef.current) return;
     if (!ctx) return;
 
-    const parent = parentRef.current;
     const canvas = canvasRef.current;
-
-    if (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight) {
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-    }
-
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (const shape of shapes) {
       drawShape(shape);
     }
-
-    requestAnimationFrame(render);
   };
 
   useEffect(() => {
     requestAnimationFrame(render);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shapes]);
+
+  useEffect(() => {
+    function handleResize(e: UIEvent) {
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  });
+
+  useEffect(() => {
+    let stop = false;
+
+    function resizeCanvas() {
+      if (!parentRef.current || !canvasRef.current) return;
+      if (stop) return;
+
+      const parent = parentRef.current;
+      const canvas = canvasRef.current;
+
+      const dimension = parent.getBoundingClientRect();
+
+      if (canvas.width !== dimension.width || canvas.height !== dimension.height) {
+        canvas.width = dimension.width;
+        canvas.height = dimension.height;
+
+        render();
+      }
+
+      requestAnimationFrame(resizeCanvas);
+    }
+
+    requestAnimationFrame(resizeCanvas);
+
+    return () => {
+      stop = true;
+    };
   });
 
   return (
