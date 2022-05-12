@@ -40,7 +40,6 @@ import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
 
 interface FormValues {
-  filepath: string | null;
   mode: "simple" | "object" | "generic";
   threads: number;
   enableCircles: boolean;
@@ -60,15 +59,29 @@ interface CalculationResult {
 export default function App() {
   const shapeDisplayParentRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLDivElement>;
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [displayShapes, setDisplayShapes] = useState<Shape[]>([]);
+
+  const [filepath, setFilepath] = useState<string>("");
 
   const [calculationResult, setCalculationResult] = useState<CalculationResult>();
+
+  const loadFile = async () => {
+    try {
+      const data = await readTextFile(filepath);
+      const json = JSON.parse(data);
+
+      setShapes(json.shapes ?? []);
+      setDisplayShapes(json.shapes ?? []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <VStack as="main" p={4} spacing={4} minHeight="100vh">
       <Box borderWidth="1px" borderRadius="lg" p={4} w="full" shadow="md">
         <Formik<FormValues>
           initialValues={{
-            filepath: null,
             mode: "simple",
             threads: 1,
             enableCircles: true,
@@ -76,16 +89,9 @@ export default function App() {
             enableCirclesToRectangles: false,
           }}
           onSubmit={async (values, { setSubmitting, setFieldError }) => {
-            if (!values.filepath) {
-              return;
-            }
-
             try {
-              const data = await readTextFile(values.filepath);
-              const json = JSON.parse(data);
-
               if (!values.enableCircles && !values.enableRectangles) {
-                setShapes([]);
+                setDisplayShapes([]);
                 setCalculationResult({
                   occupation: 0,
                   elapsed: {
@@ -95,57 +101,57 @@ export default function App() {
                   },
                 });
               } else {
-                let shapes = json.shapes;
+                let tempShapes = shapes;
                 let filterResult: FilterResult<Shape> | null = null;
 
                 if (!values.enableCircles) {
                   if (values.mode === "simple") {
-                    filterResult = await simpleFilter(shapes, "rectangle", values.threads);
+                    filterResult = await simpleFilter(tempShapes, "rectangle", values.threads);
                   } else if (values.mode === "object") {
-                    filterResult = await objectFilter(shapes, "rectangle", values.threads);
+                    filterResult = await objectFilter(tempShapes, "rectangle", values.threads);
                   } else if (values.mode === "generic") {
-                    filterResult = await genericFilter(shapes, "rectangle", values.threads);
+                    filterResult = await genericFilter(tempShapes, "rectangle", values.threads);
                   } else {
                     throw new Error("Unknown mode");
                   }
                 } else if (!values.enableRectangles) {
                   if (values.mode === "simple") {
-                    filterResult = await simpleFilter(shapes, "circle", values.threads);
+                    filterResult = await simpleFilter(tempShapes, "circle", values.threads);
                   } else if (values.mode === "object") {
-                    filterResult = await objectFilter(shapes, "circle", values.threads);
+                    filterResult = await objectFilter(tempShapes, "circle", values.threads);
                   } else if (values.mode === "generic") {
-                    filterResult = await genericFilter(shapes, "circle", values.threads);
+                    filterResult = await genericFilter(tempShapes, "circle", values.threads);
                   } else {
                     throw new Error("Unknown mode");
                   }
                 }
 
-                shapes = filterResult?.filtered ?? shapes;
+                tempShapes = filterResult?.filtered ?? tempShapes;
 
                 let mutationResult: MutationResult<Shape> | null = null;
 
                 if (values.enableCircles && values.enableCirclesToRectangles) {
                   if (values.mode === "simple") {
-                    mutationResult = await simpleMutationCirclesToRectangles(shapes, values.threads);
+                    mutationResult = await simpleMutationCirclesToRectangles(tempShapes, values.threads);
                   } else if (values.mode === "object") {
-                    mutationResult = await objectMutationCirclesToRectangles(shapes, values.threads);
+                    mutationResult = await objectMutationCirclesToRectangles(tempShapes, values.threads);
                   } else if (values.mode === "generic") {
-                    mutationResult = await genericMutationCirclesToRectangles(shapes, values.threads);
+                    mutationResult = await genericMutationCirclesToRectangles(tempShapes, values.threads);
                   } else {
                     throw new Error("Unknown mode");
                   }
                 }
 
-                shapes = mutationResult?.values ?? shapes;
+                tempShapes = mutationResult?.values ?? tempShapes;
 
                 let occupationResult: OccupationResult | null = null;
 
                 if (values.mode === "simple") {
-                  occupationResult = await simpleOccupation(shapes, values.threads);
+                  occupationResult = await simpleOccupation(tempShapes, values.threads);
                 } else if (values.mode === "object") {
-                  occupationResult = await objectOccupation(shapes, values.threads);
+                  occupationResult = await objectOccupation(tempShapes, values.threads);
                 } else if (values.mode === "generic") {
-                  occupationResult = await genericOccupation(shapes, values.threads);
+                  occupationResult = await genericOccupation(tempShapes, values.threads);
                 } else {
                   throw new Error("Unknown mode");
                 }
@@ -158,7 +164,7 @@ export default function App() {
                     occupation: occupationResult.elapsed,
                   },
                 });
-                setShapes(shapes);
+                setDisplayShapes(tempShapes);
               }
             } catch (e) {
               console.error(e);
@@ -177,47 +183,50 @@ export default function App() {
             <Form>
               <VStack>
                 <HStack w="full" spacing={4} align="end">
-                  <Field name="filepath">
-                    {({ field, meta }: FieldProps<FormValues["filepath"]>) => (
-                      <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
-                        <FormLabel htmlFor="filepath">Shape file</FormLabel>
-                        <FilePicker
-                          {...field}
-                          id="filepath"
-                          accept=".json"
-                          setFieldValue={(filepath) => props.setFieldValue("filepath", filepath)}
-                          placeholder="Select a json file"
-                        />
-                        <FormErrorMessage>{meta.error}</FormErrorMessage>
-                      </FormControl>
-                    )}
-                  </Field>
+                  <HStack w="full" borderWidth="1px" borderRadius="lg" p={3} align="end">
+                    <FormControl isRequired>
+                      <FormLabel htmlFor="filepath">Shape file</FormLabel>
+                      <FilePicker
+                        id="filepath"
+                        accept=".json"
+                        value={filepath}
+                        setFieldValue={(filepath) => {
+                          setFilepath((Array.isArray(filepath) ? filepath[0] : filepath) ?? "");
+                        }}
+                        placeholder="Select a json file"
+                      />
+                    </FormControl>
 
-                  <Field name="threads">
-                    {({ field, meta }: FieldProps<FormValues["threads"]>) => (
-                      <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
-                        <FormLabel htmlFor="threads">Threads</FormLabel>
-                        <NumberInput
-                          id="threads"
-                          {...field}
-                          pattern="([0-9]*(.[0-9]+)?)|(Pipeline)"
-                          format={(value) => (value === 0 ? "Pipeline" : value)}
-                          onChange={(value) => {
-                            const numberValue = Number(value.replace(/\D/g, ""));
-                            props.setFieldValue("threads", Number.isNaN(numberValue) ? 0 : numberValue);
-                          }}
-                          min={0}
-                        >
-                          <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
-                        </NumberInput>
-                        <FormErrorMessage>{meta.error}</FormErrorMessage>
-                      </FormControl>
-                    )}
-                  </Field>
+                    <Button onClick={loadFile}>Load</Button>
+                  </HStack>
+
+                  <Box w="full" borderWidth="1px" borderRadius="lg" p={3}>
+                    <Field name="threads">
+                      {({ field, meta }: FieldProps<FormValues["threads"]>) => (
+                        <FormControl isInvalid={!!meta.error && meta.touched} isRequired>
+                          <FormLabel htmlFor="threads">Threads</FormLabel>
+                          <NumberInput
+                            id="threads"
+                            {...field}
+                            pattern="([0-9]*(.[0-9]+)?)|(Pipeline)"
+                            format={(value) => (value === 0 ? "Pipeline" : value)}
+                            onChange={(value) => {
+                              const numberValue = Number(value.replace(/\D/g, ""));
+                              props.setFieldValue("threads", Number.isNaN(numberValue) ? 0 : numberValue);
+                            }}
+                            min={0}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                          <FormErrorMessage>{meta.error}</FormErrorMessage>
+                        </FormControl>
+                      )}
+                    </Field>
+                  </Box>
                 </HStack>
 
                 <HStack w="full" spacing={4}>
@@ -302,7 +311,7 @@ export default function App() {
                     </Field>
                   </HStack>
 
-                  <Button type="submit">Submit</Button>
+                  <Button type="submit">Execute</Button>
                 </HStack>
               </VStack>
             </Form>
@@ -320,7 +329,7 @@ export default function App() {
         w="full"
         shadow="md"
       >
-        <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={shapes} />
+        <ShapeDisplay parentRef={shapeDisplayParentRef} shapes={displayShapes} />
       </Box>
 
       {calculationResult && (
