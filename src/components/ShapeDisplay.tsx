@@ -1,3 +1,4 @@
+import { Box, Button, Flex, HStack } from "@chakra-ui/react";
 import React, { useEffect, useRef, useState } from "react";
 import { Circle, Rectangle, Shape } from "../interfaces/shape";
 
@@ -36,6 +37,8 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     }
   };
 
+  let [translate, setTranslate] = useState<[number, number]>([0, 0]);
+
   const render = () => {
     if (!parentRef.current || !canvasRef.current) return;
     if (!ctx) return;
@@ -46,6 +49,8 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     tempCanvas.width = canvas.clientWidth;
     tempCanvas.height = canvas.clientHeight;
     const tempCanvasCtx = tempCanvas.getContext("2d");
+
+    tempCanvasCtx?.translate(translate[0], translate[1]);
 
     for (const shape of shapes) {
       drawShape(tempCanvasCtx!, tempCanvas, shape);
@@ -58,7 +63,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   useEffect(() => {
     requestAnimationFrame(render);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shapes]);
+  }, [shapes, translate]);
 
   useEffect(() => {
     function handleResize(e: UIEvent) {
@@ -67,6 +72,39 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  });
+
+  let [dragStart, setDragStart] = useState<[number, number]>();
+
+  function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    setDragStart([e.clientX, e.clientY]);
+    canvasRef.current!.style.cursor = "grabbing";
+  }
+
+  function handleMouseUp(e: MouseEvent) {
+    setDragStart(undefined);
+
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = "grab";
+    }
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!dragStart) return;
+    if (!ctx) return;
+
+    setTranslate([translate[0] + e.clientX - dragStart[0], translate[1] + e.clientY - dragStart[1]]);
+    setDragStart([e.clientX, e.clientY]);
+  }
+
+  useEffect(() => {
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
   });
 
   useEffect(() => {
@@ -99,14 +137,32 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   });
 
   return (
-    <canvas
-      ref={(canvas) => {
-        canvasRef.current = canvas ?? undefined;
-        setCtx(canvas?.getContext("2d") ?? undefined);
-      }}
-      style={{
-        position: "absolute",
-      }}
-    ></canvas>
+    <>
+      <canvas
+        ref={(canvas) => {
+          canvasRef.current = canvas ?? undefined;
+          setCtx(canvas?.getContext("2d") ?? undefined);
+        }}
+        onMouseDown={handleMouseDown}
+        style={{
+          position: "absolute",
+          cursor: "grab",
+        }}
+      ></canvas>
+      <Flex position="absolute" bottom="0" right="0" justifyContent="end" alignItems="end" m={3}>
+        <HStack borderWidth="1px" borderRadius="lg" pl={3} backgroundColor="white">
+          <Box>
+            x: {translate[0]}, y: {translate[1]}
+          </Box>
+          <Button
+            onClick={() => {
+              setTranslate([0, 0]);
+            }}
+          >
+            Reset
+          </Button>
+        </HStack>
+      </Flex>
+    </>
   );
 }
