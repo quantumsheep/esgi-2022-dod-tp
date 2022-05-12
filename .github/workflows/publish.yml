@@ -1,11 +1,11 @@
 name: "publish"
+
 on:
-  push:
-    branches:
-      - release
+  release:
+    types: [created]
 
 jobs:
-  publish-tauri:
+  publish:
     strategy:
       fail-fast: false
       matrix:
