@@ -38,6 +38,7 @@ import {
 import { FilePicker } from "./components/FilePicker";
 import ShapeDisplay from "./components/ShapeDisplay";
 import { Shape } from "./interfaces/shape";
+import "./styles.css";
 
 interface FormValues {
   mode: "simple" | "object" | "generic";

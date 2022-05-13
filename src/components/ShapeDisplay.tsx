@@ -38,6 +38,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   };
 
   let [translate, setTranslate] = useState<[number, number]>([0, 0]);
+  let [zoom, setZoom] = useState(1);
 
   const render = () => {
     if (!parentRef.current || !canvasRef.current) return;
@@ -51,6 +52,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
     const tempCanvasCtx = tempCanvas.getContext("2d");
 
     tempCanvasCtx?.translate(translate[0], translate[1]);
+    tempCanvasCtx?.scale(zoom, zoom);
 
     for (const shape of shapes) {
       drawShape(tempCanvasCtx!, tempCanvas, shape);
@@ -63,7 +65,7 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   useEffect(() => {
     requestAnimationFrame(render);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shapes, translate]);
+  }, [shapes, translate, zoom]);
 
   useEffect(() => {
     function handleResize(e: UIEvent) {
@@ -90,10 +92,12 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
   }
 
   function handleMouseMove(e: MouseEvent) {
+    if (!canvasRef.current) return;
+
     if (!dragStart) return;
     if (!ctx) return;
 
-    setTranslate([translate[0] + e.clientX - dragStart[0], translate[1] + e.clientY - dragStart[1]]);
+    setTranslate([translate[0] + (e.clientX - dragStart[0]), translate[1] + (e.clientY - dragStart[1])]);
     setDragStart([e.clientX, e.clientY]);
   }
 
@@ -144,6 +148,26 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
           setCtx(canvas?.getContext("2d") ?? undefined);
         }}
         onMouseDown={handleMouseDown}
+        onWheel={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const factor = 2;
+
+          const delta = -e.deltaY / 1000;
+          let newZoom = (zoom / factor + delta) * factor;
+          newZoom = Math.min(Math.max(0.1, newZoom), 50);
+
+          const bounding = canvasRef.current!.getBoundingClientRect();
+          const mouseX = e.clientX - bounding.left;
+          const mouseY = e.clientY - bounding.top;
+
+          const zoomDiff = newZoom - zoom;
+
+          setZoom(newZoom);
+          setTranslate([translate[0] - mouseX * zoomDiff, translate[1] - mouseY * zoomDiff]);
+          // setTranslate([translate[0] - mouseX * (newZoom - zoom), translate[1] - mouseY * (newZoom - zoom)]);
+        }}
         style={{
           position: "absolute",
           cursor: "grab",
@@ -152,11 +176,12 @@ export default function ShapeDisplay({ shapes, parentRef }: ShapeDisplayProps) {
       <Flex position="absolute" bottom="0" right="0" justifyContent="end" alignItems="end" m={3}>
         <HStack borderWidth="1px" borderRadius="lg" pl={3} backgroundColor="white">
           <Box>
-            x: {translate[0]}, y: {translate[1]}
+            x: {translate[0]}, y: {translate[1]}, zoom: {zoom}
           </Box>
           <Button
             onClick={() => {
               setTranslate([0, 0]);
+              setZoom(1);
             }}
           >
             Reset
