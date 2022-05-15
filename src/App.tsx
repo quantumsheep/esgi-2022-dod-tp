@@ -84,7 +84,7 @@ export default function App() {
         <Formik<FormValues>
           initialValues={{
             mode: "simple",
-            threads: 1,
+            threads: 0,
             enableCircles: true,
             enableRectangles: true,
             enableCirclesToRectangles: false,
